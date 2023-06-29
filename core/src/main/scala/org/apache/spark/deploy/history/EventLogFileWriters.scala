@@ -299,6 +299,8 @@ class RollingEventLogFilesWriter(
 
   private val eventFileMaxLength = sparkConf.get(EVENT_LOG_ROLLING_MAX_FILE_SIZE)
 
+  private val eventFileInterval = sparkConf.get(EVENT_LOG_ROLLING_INTERVAL)
+
   private val logDirForAppPath = getAppEventLogDirPath(logBaseDir, appId, appAttemptId)
 
   private var countingOutputStream: Option[CountingOutputStream] = None
@@ -306,6 +308,7 @@ class RollingEventLogFilesWriter(
   // index and event log path will be updated soon in rollEventLogFile, which `start` will call
   private var index: Long = 0L
   private var currentEventLogFilePath: Path = _
+  private var lastInterval: Long = System.currentTimeMillis()
 
   override def start(): Unit = {
     requireLogBaseDirAsDirectory()
@@ -327,7 +330,8 @@ class RollingEventLogFilesWriter(
   override def writeEvent(eventJson: String, flushLogger: Boolean = false): Unit = {
     writer.foreach { w =>
       val currentLen = countingOutputStream.get.getBytesWritten
-      if (currentLen + eventJson.length > eventFileMaxLength) {
+      if (currentLen + eventJson.length > eventFileMaxLength
+        || lastInterval + eventFileInterval > System.currentTimeMillis()) {
         rollEventLogFile()
       }
     }
@@ -339,6 +343,7 @@ class RollingEventLogFilesWriter(
   private[history] def rollEventLogFile(): Unit = {
     closeWriter()
 
+    lastInterval = System.currentTimeMillis()
     index += 1
     currentEventLogFilePath = getEventLogFilePath(logDirForAppPath, appId, appAttemptId, index,
       compressionCodecName)
