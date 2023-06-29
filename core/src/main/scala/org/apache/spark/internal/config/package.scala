@@ -238,9 +238,19 @@ package object config {
         " to be rolled over.")
       .version("3.0.0")
       .bytesConf(ByteUnit.BYTE)
-      .checkValue(_ >= ByteUnit.MiB.toBytes(10), "Max file size of event log should be " +
-        "configured to be at least 10 MiB.")
+      .checkValue(_ >= ByteUnit.MiB.toBytes(1), "Max file size of event log should be " +
+        "configured to be at least 1 MiB.")
       .createWithDefaultString("128m")
+
+  private[spark] val EVENT_LOG_ROLLING_INTERVAL =
+    ConfigBuilder("spark.eventLog.rolling.interval")
+      .doc(s"When ${EVENT_LOG_ENABLE_ROLLING.key}=true, specifies the time interval for the " +
+        "log file rotation")
+      .version("3.2.0")
+      .timeConf(TimeUnit.MILLISECONDS)
+      .checkValue(_ >= TimeUnit.SECONDS.toMillis(30), "Interval for event log rotation " +
+        "should be configured to be at least 30s.")
+      .createWithDefaultString("300s")
 
   private[spark] val EXECUTOR_ID =
     ConfigBuilder("spark.executor.id").version("1.2.0").stringConf.createOptional
