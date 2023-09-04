@@ -49,7 +49,7 @@ RUN set -ex && \
     chgrp root /etc/passwd && chmod ug+rw /etc/passwd && \
     rm -rf /var/cache/apt/* && rm -rf /var/lib/apt/lists/* && \
     dnf clean all && \
-    rm -rf /var/cache/dnf \
+    rm -rf /var/cache/dnf
 
 RUN curl -L -o tini "https://github.com/krallin/tini/releases/download/v0.19.0/tini-${TARGETARCH}" && \
     chmod +x ./tini && mv tini /usr/bin/tini && \
