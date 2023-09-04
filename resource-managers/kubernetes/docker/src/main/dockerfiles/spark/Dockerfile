@@ -66,6 +66,9 @@ COPY kubernetes/dockerfiles/spark/decom.sh /opt/
 #COPY examples /opt/spark/examples
 COPY kubernetes/tests /opt/spark/tests
 #COPY data /opt/spark/data
+COPY conf/metrics.properties /etc/metrics/conf
+COPY conf/prometheus.yaml /etc/metrics/conf
+#COPY data /opt/spark/data
 COPY kubernetes/dockerfiles/spark/conf/metrics.properties /etc/metrics/conf
 COPY kubernetes/dockerfiles/spark/conf/prometheus.yaml /etc/metrics/conf
 
