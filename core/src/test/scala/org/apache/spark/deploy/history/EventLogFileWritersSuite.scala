@@ -278,7 +278,7 @@ class RollingEventLogFilesWriterSuite extends EventLogFileWritersSuite {
   }
 
   allCodecs.foreach { codecShortName =>
-    test(s"rolling event log files - codec $codecShortName") {
+    test(s"rolling event log files by size - codec $codecShortName") {
       def assertEventLogFilesIndex(
           eventLogFiles: Seq[FileStatus],
           expectedLastIndex: Int,
@@ -319,13 +319,66 @@ class RollingEventLogFilesWriterSuite extends EventLogFileWritersSuite {
     }
   }
 
+  test(s"rolling event log files by time interval") {
+    def assertEventLogFilesIndex(
+      eventLogFiles: Seq[FileStatus],
+      expectedLastIndex: Int): Unit = {
+      assert((1 to expectedLastIndex) ===
+        eventLogFiles.map(f => getEventLogFileIndex(f.getPath.getName)))
+    }
+
+    val appId = getUniqueApplicationId
+    val attemptId = None
+
+    val conf = getLoggingConf(testDirPath)
+    conf.set(EVENT_LOG_ENABLE_ROLLING, true)
+    conf.set(EVENT_LOG_ROLLING_INTERVAL.key, "30s")
+
+    val writer = createWriter(appId, attemptId, testDirPath.toUri, conf,
+      SparkHadoopUtil.get.newConfiguration(conf))
+
+    writer.start()
+
+    // write log more than 20m (intended to roll over to 3 files)
+    val dummyStr = "dummy"
+
+    writer.writeEvent(dummyStr, flushLogger = true)
+
+    Thread.sleep(30 * 1000)
+
+    writer.writeEvent(dummyStr, flushLogger = true)
+
+    val logDirPath = getAppEventLogDirPath(testDirPath.toUri, appId, attemptId)
+
+    val eventLogFiles = listEventLogFiles(logDirPath)
+    assertEventLogFilesIndex(eventLogFiles, 2)
+
+    writer.stop()
+  }
+
   test(s"rolling event log files - the max size of event log file size less than lower limit") {
     val appId = getUniqueApplicationId
     val attemptId = None
 
     val conf = getLoggingConf(testDirPath, None)
     conf.set(EVENT_LOG_ENABLE_ROLLING, true)
-    conf.set(EVENT_LOG_ROLLING_MAX_FILE_SIZE.key, "9m")
+    conf.set(EVENT_LOG_ROLLING_MAX_FILE_SIZE.key, "512b")
+
+    val e = intercept[IllegalArgumentException] {
+      createWriter(appId, attemptId, testDirPath.toUri, conf,
+        SparkHadoopUtil.get.newConfiguration(conf))
+    }
+    assert(e.getMessage.contains("should be configured to be at least"))
+  }
+
+  test(s"rolling event log files - the time interval of event log file rotation " +
+    "less than lower limit") {
+    val appId = getUniqueApplicationId
+    val attemptId = None
+
+    val conf = getLoggingConf(testDirPath, None)
+    conf.set(EVENT_LOG_ENABLE_ROLLING, true)
+    conf.set(EVENT_LOG_ROLLING_INTERVAL.key, "10s")
 
     val e = intercept[IllegalArgumentException] {
       createWriter(appId, attemptId, testDirPath.toUri, conf,
